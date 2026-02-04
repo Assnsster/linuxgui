@@ -1,18 +1,30 @@
 FROM ubuntu:latest
+
+# ENV
 ENV DEBIAN_FRONTEND=noninteractive
+ENV User=linux
+ENV Pass=linuxgui
+ENV rootPass=linuxgui
+
+
+# User Setup
+RUN echo "root:$rootPass" | chpasswd
 
 RUN useradd -m -s /bin/bash linux \
- && echo 'linux:linuxgui' | chpasswd \
+ && echo "$User:$Pass" | chpasswd \
  && mkdir -p /etc/sudoers.d \
  && usermod -aG sudo linux \
  && echo 'linux ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/linux \
  && chmod 440 /etc/sudoers.d/linux
+# Basic PKG, App Setup
 RUN apt update -y && apt upgrade -y
-RUN apt install xfce4 xfce4-terminal xfce4-goodies tigervnc-standalone-server -y
 RUN apt install git wget curl python3 python3-pip autoconf automake build-essential sudo -y
 RUN apt install freerdp2-x11 libssh2-1 libssl-dev libpango-1.0-0 libtelnet-dev libimlib2-dev libvncserver-dev pulseaudio libwebp-dev -y
 RUN apt install -y python3-numpy
+# Install Chrome
 RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && apt install -y ./google-chrome-stable_current_amd64.deb && rm -rf  ./google-chrome-stable_current_amd64.deb
+RUN echo "google-chrome --disable-dev-shm-usage --no-sandbox" > /usr/bin/ggcr && chmod +x /usr/bin/ggcr
+# XRDP Build And Install
 WORKDIR /app/xrdp
 RUN wget https://github.com/neutrinolabs/xrdp/releases/download/v0.10.5/xrdp-0.10.5.tar.gz \
  && tar xvzf xrdp-0.10.5.tar.gz && cd xrdp-0.10.5 && \
@@ -35,11 +47,10 @@ RUN make -j$(nproc) && \
  chown root:xrdp /etc/xrdp/rsakeys.ini
 
 RUN make-ssl-cert generate-default-snakeoil && \
- ln -sf /etc/ssl/certs/ssl-cert-snakeoil.pem /etc/xrdp/cert.pem && \
- ln -sf /etc/ssl/private/ssl-cert-snakeoil.key /etc/xrdp/key.pem && \
+ ln -sf /etc/ssl/certs/ssl-cert-snakeoil.pem /etc/xrdp/cert.pem && \ 
+ ln -sf /etc/ssl/private/ssl-cert-snakeoil.key /etc/xrdp/key.pem && \ 
  usermod -a -G ssl-cert xrdp
-
-
+# XORG
 WORKDIR /app/xorgrdp
 RUN wget https://github.com/neutrinolabs/xorgxrdp/releases/download/v0.10.5/xorgxrdp-0.10.5.tar.gz && \
  tar xvzf xorgxrdp-0.10.5.tar.gz && \
@@ -47,15 +58,20 @@ RUN wget https://github.com/neutrinolabs/xorgxrdp/releases/download/v0.10.5/xorg
  wget https://raw.githubusercontent.com/neutrinolabs/xorgxrdp/refs/heads/devel/scripts/install_xorgxrdp_build_dependencies_with_apt.sh && bash install_xorgxrdp_build_dependencies_with_apt.sh && \
  ./bootstrap && \
  ./configure --enable-glamor
-
 RUN  cd xorgxrdp && make -j$(nproc) \
  && make install \
- && sed -i 's|^param=Xorg$|param=/usr/lib/xorg/Xorg|' /etc/xrdp/sesman.ini \
- && echo "startxfce4" > /etc/xrdp/startwm.sh \
+ && sed -i 's|^param=Xorg$|param=/usr/lib/xorg/Xorg|' /etc/xrdp/sesman.ini
+
+
+# DE Setup
+RUN apt install xfce4 xfce4-terminal xfce4-goodies tigervnc-standalone-server dbus-x11 -y
+
+# XRDP DE Conf
+RUN echo "startxfce4" > /etc/xrdp/startwm.sh \
  && chmod 777 /etc/xrdp/startwm.sh
 
-RUN apt install dbus-x11 -y
+# RUN
 WORKDIR /root
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
-CMD ["bash", "/app/start.sh"]
+CMD ["bash", "/app/start.sh", "$User", "$Pass", "$rootPass"]

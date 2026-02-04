@@ -1,7 +1,14 @@
-xrdp-sesman >/dev/null 2>&1
-(xrdp >/dev/null 2>&1) && echo "xrdp started"
-echo "Can open Chrome with command \" google-chrome --disable-dev-shm-usage --no-sandbox \" in terminal"
+xrdp-sesman </dev/null >/dev/null 2>&1 &
+xrdp -nodaemon </dev/null >/dev/null 2>&1 &
+echo "Can open Google Chrome by execute \" ggcr \" on remote terminal"
 echo "XRDP run at port 3389"
-echo "User: linux"
-echo "Pass: linuxgui"
-sleep 999999d
+echo -ne """
+Credentials:
+User: $1
+Pass: $2
+
+Root Credentials:
+User: root
+Pass: $3
+"""
+sleep 9999999d
