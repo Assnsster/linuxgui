@@ -1,5 +1,8 @@
 # LinuxGUI
 https://hub.docker.com/repository/docker/ductris/linuxgui/general
+## Feature
+- XRDP ( Audio, h.264 Enc Support), port 3389
+- Xfce4 Desktop Env
 ## RUN
 ```bash
 docker run --name linuxguiii -p 0.0.0.0:3389:3389 -it ductris/linuxgui:latest
@@ -9,8 +12,15 @@ docker run --name linuxguiii -p 0.0.0.0:3389:3389 -it ductris/linuxgui:latest
 docker start linuxguiii
 ```
 ## CONNECT
-after run then go port 3389 (RDP), credentials is
+### User Credentials
+after run then go port 3389 (RDP),default credentials is
 
 User: `linux`
 
 Pass: `linuxgui`
+### Admin ( root ) Default Credentials
+
+User: `root`
+Pass: `linuxgui`
+
+

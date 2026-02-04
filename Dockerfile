@@ -46,7 +46,7 @@ RUN make -j$(nproc) && \
  chmod 640 /etc/xrdp/rsakeys.ini && \
  chown root:xrdp /etc/xrdp/rsakeys.ini
 
-RUN make-ssl-cert generate-default-snakeoil && \
+RUN apt install apache2 -y &&  make-ssl-cert generate-default-snakeoil && \
  ln -sf /etc/ssl/certs/ssl-cert-snakeoil.pem /etc/xrdp/cert.pem && \ 
  ln -sf /etc/ssl/private/ssl-cert-snakeoil.key /etc/xrdp/key.pem && \ 
  usermod -a -G ssl-cert xrdp
@@ -61,17 +61,38 @@ RUN wget https://github.com/neutrinolabs/xorgxrdp/releases/download/v0.10.5/xorg
 RUN  cd xorgxrdp && make -j$(nproc) \
  && make install \
  && sed -i 's|^param=Xorg$|param=/usr/lib/xorg/Xorg|' /etc/xrdp/sesman.ini
+# XRDP Audio
+WORKDIR /app/xrdpaudio
+RUN apt install libpulse-dev  lsb-release -y
+RUN git clone https://github.com/neutrinolabs/pulseaudio-module-xrdp.git \
+ && cd pulseaudio-module-xrdp \
+ && bash scripts/install_pulseaudio_sources_apt.sh \
+ && ./bootstrap && ./configure PULSE_DIR=$HOME/pulseaudio.src \
+ && make -j$(nproc) \
+ && make install \
+ && bash /usr/libexec/pulseaudio-module-xrdp/load_pa_modules.sh
 
 
 # DE Setup
 RUN apt install xfce4 xfce4-terminal xfce4-goodies tigervnc-standalone-server dbus-x11 -y
 
 # XRDP DE Conf
-RUN echo "startxfce4" > /etc/xrdp/startwm.sh \
- && chmod 777 /etc/xrdp/startwm.sh
+RUN echo -ne '#!/bin/sh\n\
+case "$(whoami)" in\n\
+  root)\n\
+    pulseaudio --system >/dev/null 2>&1 &\n\
+    pulseaudio >/dev/null 2>&1 &\n\
+    ;;\n\
+  *)\n\
+    pulseaudio --start >/dev/null 2>&1\n\
+    ;;\n\
+esac\n\
+exec startxfce4\n' \
+> /etc/xrdp/startwm.sh \
+&& chmod +x /etc/xrdp/startwm.sh
 
 # RUN
 WORKDIR /root
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
-CMD ["bash", "/app/start.sh", "$User", "$Pass", "$rootPass"]
+CMD ["sh", "-c", "bash /app/start.sh $User $Pass $rootPass"]
